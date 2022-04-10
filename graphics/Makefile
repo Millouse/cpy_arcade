@@ -16,17 +16,17 @@ MFLAGS		+=	-sC
 all:
 			$(MAKE) $(MFLAGS) ncurses/
 			$(MAKE) $(MFLAGS) sdl2/
-			$(MAKE) $(MFLAGS) sfml/
+			$(MAKE) $(MFLAGS) libcaca/
 
 clean:
 			$(MAKE) $(MFLAGS) ncurses/ clean
 			$(MAKE) $(MFLAGS) sdl2/ clean
-			$(MAKE) $(MFLAGS) sfml/ clean
+			$(MAKE) $(MFLAGS) libcaca/ clean
 
 fclean:
 			$(MAKE) $(MFLAGS) ncurses/ fclean
 			$(MAKE) $(MFLAGS) sdl2/ fclean
-			$(MAKE) $(MFLAGS) sfml/ fclean
+			$(MAKE) $(MFLAGS) libcaca/ fclean
 
 re:			fclean all
 

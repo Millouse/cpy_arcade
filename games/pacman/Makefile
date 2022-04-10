@@ -9,6 +9,8 @@
 ### SOURCES ###
 #----c_sources----#
 SRC		:= Pacman.cpp
+SRC		+= Player.cpp
+SRC		+= Ghost.cpp
 #------other------#
 OBJ		:= $(SRC:.cpp=.o)
 INC		:= -I ./

@@ -22,7 +22,7 @@ CC			= g++
 NAME		= arcade_sdl2.so
 #MAKEFLAGS 	+= --no-print-directory
 #MFLAGS		+=	-sC
-CPPFLAGS	:= $(INC) -fPIC -g
+CPPFLAGS	:= $(INC) -fPIC
 CFLAGS		:= -std=c++20 -Wall -Wextra
 #CFLAGS		+= -Werror
 #CFLAGS		+= -g3

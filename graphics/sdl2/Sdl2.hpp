@@ -7,27 +7,33 @@
 
 #pragma once
 
-#include "../IGraphic.hpp"
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+#include <SDL2/SDL_ttf.h>
+#include "../IGraphic.hpp"
 
 class Sdl2 : public IGraphic {
     public:
         Sdl2();
         ~Sdl2();
-        virtual void lib_init();
-        virtual void lib_exit();
-        virtual void asset_load();
-        virtual void window_refresh();
-        virtual void window_clear();
-        virtual void window_close();
-        virtual bool is_open();
-        virtual int get_key();
-        virtual int get_window_size();
-        virtual void print_text(std::string, int, int, bool = false);
+        virtual void assetsLoad(std::vector<std::tuple<char, char, std::string>>);
+        virtual void windowRefresh();
+        virtual void windowClear();
+        virtual void windowClose();
+        virtual bool isRunning();
+        virtual int getKey();
+        virtual int getSize();
+        virtual void printText(std::string, pos_t);
+        virtual void printMap(std::vector<std::string>, pos_t);
+        virtual void printElements(std::vector<std::pair<char, pos_t>>, pos_t);
+        virtual int findTuple(char);
+        void printImage(std::string, pos_t, pos_t);
 
     protected:
     private:
         SDL_Window* _window;
         SDL_Renderer* _renderer;
+        TTF_Font *_font;
         bool _open;
+        std::vector<std::pair<char, std::string>> _assets;
 };

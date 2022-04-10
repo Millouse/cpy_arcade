@@ -2,17 +2,18 @@
 ** EPITECH PROJECT, 2022
 ** Untitled (Workspace)
 ** File description:
-** NCurses
+** Libcaca
 */
 
 #pragma once
 
+#include <caca.h>
 #include "../IGraphic.hpp"
 
-class NCurses : public IGraphic {
+class Libcaca : public IGraphic {
     public:
-        NCurses();
-        ~NCurses();
+        Libcaca();
+        ~Libcaca();
         virtual void assetsLoad(std::vector<std::tuple<char, char, std::string>>);
         virtual void windowRefresh();
         virtual void windowClear();
@@ -27,6 +28,9 @@ class NCurses : public IGraphic {
 
     protected:
     private:
+        caca_canvas_t *_canvas;
+        caca_display_t *_display;
+        caca_event_t _event;
         bool _open;
         std::vector<std::pair<char, char>> _assets;
 };

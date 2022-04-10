@@ -19,10 +19,8 @@ int main(int ac, char * const *av)
     return 84;
   }
   try {
-    core->load_graphic(std::string(av[1]));
-    if (core->is_graphic_loaded() == false)
-      return 84;
-    core->search_libs();
+    core->loadGraphic(std::string(av[1]));
+    core->searchLibs();
     core->loop();
   } catch (const ExceptionGraphic& e) {
     std::cerr << "An error append in the graphic library" << std::endl;

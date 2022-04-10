@@ -8,7 +8,7 @@
 
 ### SOURCES ###
 #----c_sources----#
-SRC		:= Sfml.cpp
+SRC		:= Libcaca.cpp
 #------other------#
 OBJ		:= $(SRC:.cpp=.o)
 INC		:= -I ./
@@ -19,14 +19,14 @@ INC		:= -I ./
 #----general_usefull----#
 CC			= g++
 #----project_usefull----#
-NAME		= arcade_sfml.so
+NAME		= arcade_libcaca.so
 #MAKEFLAGS 	+= --no-print-directory
 #MFLAGS		+=	-sC
-CPPFLAGS	:= $(INC) -fPIC -g
+CPPFLAGS	:= $(INC) -fPIC
 CFLAGS		:= -std=c++20 -Wall -Wextra
 #CFLAGS		+= -Werror
 #CFLAGS		+= -g3
-LDFLAGS		:= -shared -lsfml-graphics -lsfml-window -lsfml-system
+LDFLAGS		:= -shared `pkg-config --libs caca`
 ### COMPILE_USEFULL ###
 
 

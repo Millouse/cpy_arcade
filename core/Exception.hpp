@@ -12,7 +12,7 @@
 
 class ExceptionGraphic : public std::exception {
     public:
-        ExceptionGraphic(const std::string &message) noexcept { this->_message = message; };
+        ExceptionGraphic(const std::string &message) noexcept { _message = message; };
         ~ExceptionGraphic() = default;
         const char *what() const noexcept override { return _message.c_str(); };
 
@@ -23,7 +23,7 @@ class ExceptionGraphic : public std::exception {
 
 class ExceptionGame : public std::exception {
     public:
-        ExceptionGame(const std::string &message) noexcept { this->_message = message; };
+        ExceptionGame(const std::string &message) noexcept { _message = message; };
         ~ExceptionGame() = default;
         const char *what() const noexcept override { return _message.c_str(); };
 

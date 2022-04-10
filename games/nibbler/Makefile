@@ -9,6 +9,8 @@
 ### SOURCES ###
 #----c_sources----#
 SRC		:= Nibbler.cpp
+SRC		+= Player.cpp
+SRC		+= Apple.cpp
 #------other------#
 OBJ		:= $(SRC:.cpp=.o)
 INC		:= -I ./

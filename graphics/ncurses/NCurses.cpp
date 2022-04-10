@@ -9,72 +9,104 @@
 #include <curses.h>
 #include "NCurses.hpp"
 
-extern "C" IGraphic *gen_graphic()
+extern "C" IGraphic *genGraphic()
 {
     return new NCurses;
 }
 
+extern "C" std::string getId()
+{
+    return "Ncurses";
+}
+
 NCurses::NCurses()
-{}
-
-NCurses::~NCurses()
-{}
-
-void NCurses::lib_init()
 {
     initscr();
     noecho();
     curs_set(0);
     keypad(stdscr, TRUE);
     nodelay(stdscr, TRUE);
-    this->open = true;
+    _open = true;
 }
 
-void NCurses::lib_exit()
+NCurses::~NCurses()
 {
+    windowClear();
+    windowClose();
     curs_set(1);
     endwin();
 }
 
-void NCurses::asset_load()
-{}
+void NCurses::assetsLoad(std::vector<std::tuple<char, char, std::string>> assets)
+{
+    _assets.clear();
+    for (auto& asset : assets)
+        _assets.push_back({std::get<0>(asset), std::get<1>(asset)});
+}
 
-void NCurses::window_refresh()
+void NCurses::windowRefresh()
 {
     refresh();
 }
 
-void NCurses::window_clear()
+void NCurses::windowClear()
 {
     clear();
 }
 
-void NCurses::window_close()
+void NCurses::windowClose()
 {
-    this->open = false;
+    _open = false;
 }
 
-bool NCurses::is_open()
+bool NCurses::isRunning()
 {
-    return this->open;
+    return _open;
 }
 
-int NCurses::get_key()
+#include <fstream>
+
+int NCurses::getKey()
 {
-    return getch();
+    int key = getch();
+
+    if (key == KEY_BACKSPACE || key == KEY_DC || key == 127)
+        return 8;
+    return key;
 }
 
-int NCurses::get_window_size()
+int NCurses::getSize()
 {
     return COLS;
 }
 
-void NCurses::print_text(std::string text, int x, int y, bool highlight)
+void NCurses::printText(std::string text, pos_t pos)
 {
-    if (highlight == true) {
-        attron(A_REVERSE);
-        mvprintw(y, x, text.c_str());
-        attroff(A_REVERSE);
-    } else
-        mvprintw(y, x, text.c_str());
+    mvprintw(pos.y, pos.x, text.c_str());
+}
+
+void NCurses::printMap(std::vector<std::string> map, pos_t tab)
+{
+    for (int y = 0; y < map.size(); ++y)
+        for (int x = 0; x < map[y].size(); ++x)
+            printText(std::string(1, map[y][x]), {x + tab.x, y + tab.y});
+}
+
+int NCurses::findTuple(char id)
+{
+    for (int i = 0; i < _assets.size(); ++i)
+        if (_assets[i].first == id)
+            return i;
+    return -1;
+}
+
+void NCurses::printElements(std::vector<std::pair<char, pos_t>> elements, pos_t tab)
+{
+    int pos = -1;
+
+    for (const auto& elem : elements) {
+        pos = findTuple(elem.first);
+        printText(std::string(1, (pos == -1) ? '?' : std::get<1>(_assets[pos])),
+            {elem.second.x + tab.x, elem.second.y + tab.y});
+    }
 }

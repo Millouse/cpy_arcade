@@ -1,0 +1,54 @@
+SNAKE:
+
+spawn 2 food
+
+create 4 cells long snake
+
+key_up = set snake direction up
+key_down = set snake direction down
+key_left = set snake direction letf
+key_right = set snake direction right
+
+encounter food = add 1 to snake length
+encounter wall = game over
+encounter snake = game over
+
+spawn 1 food each time a food is consumed
+
+for each tail cell : stay on map for (lenght of snake - cell position in tail) loop cycle
+
+
+
+
+
+PACMAN:
+
+spawn pacman under ghost cell
+
+key_up = set pacman direction up
+key_down = set pacman direction down
+key_left = set pacman direction letf
+key_right = set pacman direction right
+
+encounter food = add 1 to score
+encounter pacgum = ghost eater mode for 10s
+encounter wall = stop pacman
+encounter map edge = respwan opposite size
+encounter ghost = game over
+encounter ghost wth pacgum = death of ghot and +200 to score
+
+eats all food and pacgum on map = reload map with faster movement
+
+Ghost Handling: each crossroads take a random direction
+
+/***************************DO_NOT_USE********************************/
+red = chase pacman following shortest path
+pink = try to ambush pacman
+blue = shortest path to a random position and restart once reached
+orange = count tiles btw pacman and him, if more than 8 chase pacman, if less than 8 go to scatter mode
+/********************************************************************/
+
+
+chase: apply all specific ghost personnality
+scatter: each ghost go to specific corner and cycle
+flee: flee pacman then go to scatter mode for 10s

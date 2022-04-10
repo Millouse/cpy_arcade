@@ -6,6 +6,7 @@
 */
 
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 #include <dlfcn.h>
 #include "Core.hpp"
@@ -13,239 +14,317 @@
 
 typedef IGraphic* (*LibGraphic)();
 typedef IGame* (*LibGame)();
+typedef std::string (*GetId)();
+
+// ne pas reload si deja load
+// stocker pair of path, check first ou second avant de reload inutilement
+// si pas load on delete avant et on load
+// si deja load on restart
 
 Core::Core()
 {
-    this->handl_graphic = nullptr;
-    this->handl_game = nullptr;
-    this->lib_graphic = NULL;
-    this->lib_game = NULL;
-    this->name = "test";
-    this->highlight.first = GRAPHICS;
-    this->highlight.second = 0;
-    this->state = MENU;
+    _handlGraphic = nullptr;
+    _handlGame = nullptr;
+    _libGraphic = NULL;
+    _libGame = NULL;
+    _name = "default";
+    _choice.first = 0;
+    _choice.second = 0;
+    _state = MENU;
 }
 
 Core::~Core()
 {
-    close_graphic();
-    close_game();
+    closeGraphic();
+    closeGame();
+    _graphics.clear();
+    _games.clear();
 }
 
-void Core::load_graphic(std::string file)
+void Core::loadGraphic(std::string file)
 {
     LibGraphic lib = NULL;
+    GetId id = NULL;
 
     if (file.find("./", 0) == std::string::npos)
         file.insert(0, "./");
-    this->handl_graphic = dlopen(file.c_str(), RTLD_LAZY);
-    if (this->handl_graphic == NULL)
-        throw ExceptionGame(std::string("dlopen : ") + dlerror() + std::string("\n"));
-    lib = (LibGraphic)dlsym(this->handl_graphic, "gen_graphic");
+    _handlGraphic = dlopen(file.c_str(), RTLD_LAZY);
+    if (_handlGraphic == NULL)
+        throw ExceptionGraphic(std::string("dlopen : ") + dlerror());
+    lib = (LibGraphic)dlsym(_handlGraphic, "genGraphic");
     if (lib == NULL)
-        throw ExceptionGame(std::string("dlsym : ") + dlerror() + std::string("\n"));
-    this->lib_graphic = lib();
-    if (this->graphics.empty())
-        this->graphics.push_back(file);
+        throw ExceptionGraphic(std::string("dlsym : ") + dlerror());
+    _libGraphic = lib();
+    id = (GetId)dlsym(_handlGraphic, "getId");
+    if (id == NULL)
+        throw ExceptionGraphic(std::string("dlsym : ") + dlerror());
+    if (_graphics.empty())
+        _graphics.push_back({file, id()});
+    if (_state == GAME)
+        _libGraphic->assetsLoad(_libGame->getAssets());
 }
 
-void Core::load_game(std::string file)
+void Core::loadGame(std::string file)
 {
     LibGame lib = NULL;
 
     if (file.find("./", 0) == std::string::npos)
         file.insert(0, "./");
-    this->handl_game = dlopen(file.c_str(), RTLD_LAZY);
-    if (this->handl_game == NULL)
-        throw ExceptionGame(std::string("dlopen : ") + dlerror() + std::string("\n"));
-    lib = (LibGame)dlsym(this->handl_game, "gen_game");
+    _handlGame = dlopen(file.c_str(), RTLD_LAZY);
+    if (_handlGame == NULL)
+        throw ExceptionGame(std::string("dlopen : ") + dlerror());
+    lib = (LibGame)dlsym(_handlGame, "genGame");
     if (lib == NULL)
-        throw ExceptionGame(std::string("dlsym : ") + dlerror() + std::string("\n"));
-    this->lib_game = lib();
+        throw ExceptionGame(std::string("dlsym : ") + dlerror());
+    _libGame = lib();
+    _libGraphic->assetsLoad(_libGame->getAssets());
+    _state = GAME;
 }
 
-void Core::close_graphic()
+void Core::closeGraphic()
 {
-    if (this->lib_graphic != NULL) {
-        this->lib_graphic->lib_exit();
-        delete this->lib_graphic;
-    }
-    if (this->handl_graphic != NULL)
-        dlclose(this->handl_graphic);
+    if (_libGraphic != NULL)
+        delete _libGraphic;
+    if (_handlGraphic != NULL)
+        dlclose(_handlGraphic);
 }
 
-void Core::close_game()
+void Core::closeGame()
 {
-    if (this->lib_game != NULL)
-        delete this->lib_game;
-    if (this->handl_game != NULL)
-        dlclose(this->handl_game);
+    if (_libGame != NULL)
+        delete _libGame;
+    if (_handlGame != NULL)
+        dlclose(_handlGame);
 }
 
-void Core::switch_graphic(std::string path)
+void Core::switchGraphic(std::string path)
 {
-    if (this->graphics.empty())
-        throw ExceptionGraphic("you need ad lease 1 graphic library");
-    if (this->graphics.size() == 1)
+    if (_graphics.empty())
+        throw ExceptionGraphic("you need at least 1 graphic library");
+    if (_graphics.size() == 1)
         return;
-    close_graphic();
-    load_graphic(path);
+    closeGraphic();
+    loadGraphic(path);
 }
 
-void Core::switch_game(std::string path)
+void Core::switchGame(std::string path)
 {
-    if (this->games.empty())
-        throw ExceptionGraphic("you need ad lease 1 game library");
-    if (this->games.size() == 1)
+    if (_games.empty())
+        throw ExceptionGraphic("you need at least 1 game library");
+    if (_games.size() == 1)
         return;
-    close_game();
-    load_game(path);
+    closeGame();
+    loadGame(path);
 }
 
-bool Core::is_graphic_loaded()
+bool findPair(std::vector<std::pair<std::string, std::string>> graphics, std::string path)
 {
-    if (this->lib_graphic != NULL)
-        return true;
-    else
-        return false;
+    for (const auto& graph : graphics)
+        if (path == graph.first)
+            return true;
+    return false;
 }
 
-bool Core::is_game_loaded()
-{
-    if (this->lib_game != NULL)
-        return true;
-    else
-        return false;
-}
-
-void Core::load_it(std::filesystem::path file)
-{
-    void *handl = dlopen(file.c_str(), RTLD_LAZY);
-
-    if (handl == NULL)
-        return;
-    if (dlsym(handl, "gen_graphic") != NULL)
-        this->graphics.push_back(file.string());
-    if (dlsym(handl, "gen_game") != NULL)
-        this->games.push_back(file.string());
-}
-
-void Core::search_libs()
+void Core::searchLibs()
 {
     if (std::filesystem::exists("./lib/") == false)
         return;
     for (const auto &file : std::filesystem::directory_iterator("./lib/"))
-        if (std::find(this->graphics.begin(), this->graphics.end(), file.path().string()) == this->graphics.end())
-            load_it(file.path());
+        if (findPair(_graphics, file.path().string()) == false)
+            saveLib(file.path());
 }
 
-void Core::print_options()
+void Core::saveLib(std::filesystem::path file)
 {
-    int i = 0;
-    int x = this->lib_graphic->get_window_size() / 3;
+    void *handl = dlopen(file.c_str(), RTLD_LAZY);
+    GetId id = NULL;
 
-    for (auto & elem : this->graphics) {
-        if (this->highlight.first == GRAPHICS)
-            this->lib_graphic->print_text(elem, x / 10, i, this->highlight.second == i);
-        else
-            this->lib_graphic->print_text(elem, x / 10, i);
-        i++;
-    }
-
-    i = 0;
-    for (auto & elem : this->games) {
-        if (this->highlight.first == GAMES)
-            this->lib_graphic->print_text(elem, x + x / 10, i, this->highlight.second == i);
-        else
-            this->lib_graphic->print_text(elem, x + x / 10, i);
-        i++;
-    }
-
-    if (this->highlight.first == NAME)
-        this->lib_graphic->print_text(this->name, x * 2 + x / 10, 0, true);
-    else
-        this->lib_graphic->print_text(this->name, x * 2 + x / 10, 0);
+    if (handl == NULL)
+        return;
+    id = (GetId)dlsym(handl, "getId");
+    if (id == NULL)
+        throw ExceptionGraphic(std::string("dlsym : ") + dlerror());
+    if (dlsym(handl, "genGraphic") != NULL)
+        _graphics.push_back({file.string(), id()});
+    if (dlsym(handl, "genGame") != NULL)
+        _games.push_back({file.string(), id()});
 }
 
-void Core::key_man(int key)
+void Core::loadScore()
 {
-    if (key == 'q') {
-        this->lib_graphic->window_close();
-        this->state = EXIT;
+    std::ifstream file(std::string("./assets/") + _games[_choice.second].second + "/scores");
+    std::string line;
+
+    if (!file)
+        _scores.push_back("none");
+    while (std::getline(file, line))
+        _scores.push_back(line);
+    if (_scores.size() == 0)
+        _scores.push_back("none");
+}
+
+void Core::displayMenu()
+{
+    int x = _libGraphic->getSize() / 2;
+    std::string filename;
+
+    _libGraphic->printText("  GRAPHICALS LIBS :", {x / 10, 0});
+    for (int i = 0; i < _graphics.size(); ++i)
+        _libGraphic->printText((_choice.first == i ? "> " : "  ") + _graphics[i].second, {x / 10, i + 2});
+    _libGraphic->printText("  Player name : " + _name, {x / 10, 3 + (int)_graphics.size()});
+    if (_state == MENU) {
+        _libGraphic->printText("  GAMES LIBS :", {x + x / 10, 0});
+        for (int i = 0; i < _games.size(); ++i)
+            _libGraphic->printText((_choice.second == i ? "> " : "  ") + _games[i].second,
+                {x + x / 10, i + 2});
+        if (_scores.size() == 0)
+            loadScore();
+        _libGraphic->printText("  LEADERBOARD :", {x + x / 10, 3 + (int)_games.size()});
+        for (int i = 0; i < _scores.size(); ++i)
+            _libGraphic->printText("  " + _scores[i], {x + x / 10, i + 5 + (int)_games.size()});
     }
+    else if (_state == GAME)
+        displayGame();
+    else if (_state == OVER)
+        displayOver();
+}
+
+void Core::displayGame()
+{
+    int x = _libGraphic->getSize() / 3;
+
+    _libGraphic->printText("Score : " + std::to_string(_libGame->getScore()), {x + x / 10, 0});
+    _libGraphic->printMap(_libGame->getMap(), {x + x / 10, 2});
+    _libGraphic->printElements(_libGame->getElements(), {x + x / 10, 2});
+}
+
+void Core::displayOver()
+{
+    int x = _libGraphic->getSize() / 3;
+
+    _libGraphic->printText("Game over", {x + x / 10, 0});
+    _libGraphic->printText("Your Score : " + std::to_string(_libGame->getScore()), {x + x / 10, 1});
+    _libGraphic->printText("press r to restart the game", {x + x / 10, 3});
+    _libGraphic->printText("or any key to continue to main menu", {x + x / 10, 4});
+}
+
+void Core::displayMan()
+{
+    displayMenu();
+}
+
+void Core::keyLib(int key)
+{
     if (key == KEY_DOWN) {
-        if (this->highlight.first == GRAPHICS && this->highlight.second == this->graphics.size() - 1)
-            this->highlight.second = 0;
-        else if (this->highlight.first == GAMES && this->highlight.second == this->games.size() - 1)
-            this->highlight.second = 0;
-        else if (this->highlight.first == GRAPHICS || this->highlight.first == GAMES)
-            this->highlight.second++;
-    }
-    if (key == KEY_UP) {
-        if (this->highlight.first == GRAPHICS && this->highlight.second == 0)
-            this->highlight.second = this->graphics.size() - 1;
-        else if (this->highlight.first == GAMES && this->highlight.second == 0)
-            this->highlight.second = this->games.size() - 1;
-        else if (this->highlight.first == GRAPHICS || this->highlight.first == GAMES)
-            this->highlight.second--;
-    }
-    if (key == KEY_RIGHT) {
-        if (this->highlight.first == NAME)
-            this->highlight.first = GRAPHICS;
-        else
-            this->highlight.first++;
-        if (this->highlight.first == GRAPHICS && this->highlight.second > this->graphics.size() - 1)
-            this->highlight.second = this->graphics.size() - 1;
-        else if (this->highlight.first == GAMES && this->highlight.second > this->games.size() - 1)
-            this->highlight.second = this->games.size() - 1;
-        else if (this->highlight.first == NAME)
-            this->highlight.second = 0;
+        _choice.first++;
+        if (_choice.first > _graphics.size() - 1)
+            _choice.first = 0;
+    } else if (key == KEY_UP) {
+        _choice.first--;
+        if (_choice.first < 0)
+            _choice.first = _graphics.size() - 1;
     }
     if (key == KEY_LEFT) {
-        if (this->highlight.first == GRAPHICS)
-            this->highlight.first = NAME;
-        else
-            this->highlight.first--;
-        if (this->highlight.first == GRAPHICS && this->highlight.second > this->graphics.size() - 1)
-            this->highlight.second = this->graphics.size() - 1;
-        else if (this->highlight.first == GAMES && this->highlight.second > this->games.size() - 1)
-            this->highlight.second = this->games.size() - 1;
-        else if (this->highlight.first == NAME)
-            this->highlight.second = 0;
+        _choice.second++;
+        if (_choice.second > _games.size() - 1)
+            _choice.second = 0;
+        _scores.clear();
+    } else if (key == KEY_RIGHT) {
+        _choice.second--;
+        if (_choice.second < 0)
+            _choice.second = _games.size() - 1;
+        _scores.clear();
     }
-    if (key == KEY_ENTER) {
-        if (this->highlight.first == GRAPHICS)
-            this->switch_graphic(this->graphics[this->highlight.second]);
-    }
+    if (key == KEY_DOWN || key == KEY_UP)
+        switchGraphic(_graphics[_choice.first].first);
+    if (_state == MENU && key == KEY_ENTER)
+        switchGame(_games[_choice.second].first);
     return;
+}
+
+void Core::keyMenu(int key)
+{
+    if (key >= 'a' && key <= 'z')
+        _name.push_back(key);
+    else if (key == KEY_BACKSPACE && _name.size() != 0)
+        _name.pop_back();
+}
+
+void Core::keyGame(int key)
+{
+    if (key == 'r')
+        _libGame->gameRestart();
+    else if (key == 'm')
+        _state = MENU;
+    else if (key == 'z' || key == 'q' || key == 's' || key == 'd')
+        _libGame->gameKeys(key);
+    return;
+}
+
+void Core::keyOver(int key)
+{
+    if (key == 'r') {
+        _libGame->gameRestart();
+        _state = GAME;
+    } else if (key == 'm')
+        _state = MENU;
+    else if (key != -1)
+        _state = MENU;
+    return;
+}
+
+void Core::keyMan(int key)
+{
+    if (key == KEY_ESCAPE)
+        _libGraphic->windowClose();
+    if ((key >= KEY_DOWN && key <= KEY_RIGHT) ||
+        key == KEY_ENTER || key == KEY_BACKSPACE)
+        keyLib(key);
+    if (_state == MENU)
+        keyMenu(key);
+    else if (_state == GAME)
+        keyGame(key);
+    else if (_state == OVER)
+        keyOver(key);
+    return;
+}
+
+static bool validClock(std::chrono::time_point<std::chrono::high_resolution_clock> clock, tclock_t timer)
+{
+    if (timer == DISP && std::chrono::duration_cast<std::chrono::microseconds>
+        (std::chrono::high_resolution_clock::now() - clock).count() > 10000)
+        return true;
+    else if (timer == PLAY && std::chrono::duration_cast<std::chrono::microseconds>
+        (std::chrono::high_resolution_clock::now() - clock).count() > 400000)
+        return true;
+    else
+        return false;
 }
 
 void Core::loop()
 {
+    // mettre refresh et play dans le class ? suetout play,
+    // il se lance seulement au demarage du jeu, pour pas surcharger
     auto refresh = std::chrono::high_resolution_clock::now();
+    auto play = std::chrono::high_resolution_clock::now();
     int key = -1;
 
-    while (this->state != EXIT) {
-        this->lib_graphic->lib_init();
-        while (this->lib_graphic->is_open()) {
-            if (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - refresh).count() > 10000000) {
-                this->lib_graphic->window_clear();
-                this->print_options();
-                this->lib_graphic->window_refresh();
-                refresh = std::chrono::high_resolution_clock::now();
-            }
-            this->key_man(this->lib_graphic->get_key());
+    while (_libGraphic->isRunning()) {
+        if (validClock(refresh, DISP)) {
+            _libGraphic->windowClear();
+            displayMan();
+            _libGraphic->windowRefresh();
+            refresh = std::chrono::high_resolution_clock::now();
         }
-        this->lib_graphic->lib_exit();
+        if (_state == GAME && validClock(play, PLAY)) {
+            _libGame->gameLoop();
+            if (!_libGame->isAlive()) {
+                _libGame->saveScore();
+                _state = OVER;
+            }
+            play = std::chrono::high_resolution_clock::now();
+        }
+        keyMan(_libGraphic->getKey());
     }
-}
-
-std::vector<std::string> Core::get_graphics()
-{
-    return this->graphics;
-}
-
-std::vector<std::string> Core::get_games()
-{
-    return this->games;
+    closeGraphic();
 }
